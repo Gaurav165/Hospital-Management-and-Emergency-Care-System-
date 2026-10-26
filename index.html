@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MediCore – Hospital OS Simulator</title><style>:root{--bg:#f2f8fb;--ink:#12303d;--teal:#0e8a8a;--blue:#dbeef7;--red:#c0392b;--amber:#b26a00}
+*{box-sizing:border-box}body{margin:0;display:flex;min-height:100vh;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+nav{width:220px;background:#fff;border-right:1px solid var(--blue);padding:16px;display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+nav h1{color:var(--teal);margin:0 0 10px;font-size:1.4rem}
+button,input,select{font:inherit;padding:6px 10px;border:1px solid #b9d3de;border-radius:6px;background:#fff;color:var(--ink)}
+button{background:var(--teal);color:#fff;border-color:var(--teal);cursor:pointer}button:hover{filter:brightness(1.1)}
+nav button{background:none;color:var(--ink);border:0;text-align:left}nav button.on{background:var(--blue);font-weight:600}
+:focus-visible{outline:3px solid #f5a623;outline-offset:2px}
+main{flex:1;padding:20px;min-width:0}.note{background:#fff3cd;padding:8px 12px;border-radius:6px;font-size:.9rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:12px 0}
+.card{background:#fff;padding:16px;border-radius:12px;box-shadow:0 2px 8px #0e8a8a22}.card b{display:block;font-size:2rem;color:var(--teal)}
+.row,form{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}table{width:100%;border-collapse:collapse;background:#fff;margin:10px 0;display:block;overflow-x:auto}
+th,td{padding:6px 10px;border-bottom:1px solid var(--blue);text-align:left}td input{width:70px}
+.badge{padding:2px 8px;border-radius:10px;color:#fff;font-size:.8rem}.Critical{background:var(--red)}.Urgent{background:var(--amber)}.Routine{background:var(--teal)}
+.gantt{display:flex;margin:12px 0;overflow-x:auto}.gantt div{min-width:34px;padding:8px 4px;text-align:center;color:#fff;border-right:2px solid #fff;position:relative;font-size:.85rem}
+.gantt small{position:absolute;left:0;bottom:-18px;color:var(--ink)}.gantt{padding-bottom:20px}
+.buf{display:flex;gap:6px}.buf div{flex:1;min-height:48px;border:2px dashed #b9d3de;border-radius:8px;display:grid;place-items:center;font-size:.8rem;background:#fff}.buf .f{background:var(--blue);border:2px solid var(--teal)}
+.log{background:#102a35;color:#cfe;padding:10px;border-radius:8px;height:160px;overflow:auto;font-size:.85rem}
+.map{display:flex;height:64px;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:#fff}.map div{display:grid;place-items:center;font-size:.8rem;border-right:1px solid #fff;overflow:hidden}.map .used{background:var(--teal);color:#fff}.map .free{background:#eaf3f6}
+.msg{font-weight:600}.ok{color:#0a7a3d}.bad{color:var(--red)}
+@media(max-width:700px){body{flex-direction:column}nav{width:100%;flex-direction:row;flex-wrap:wrap}nav h1{width:100%}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:center;background:#0B1220;color:#fff;border-radius:16px;padding:32px;margin:0 0 20px;box-shadow:0 0 0 1px #4CC9F033,0 0 40px #4CC9F022;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:28px 28px}
+.hero h2{font-size:clamp(2.6rem,7vw,4.5rem);letter-spacing:.02em;margin:4px 0;font-weight:800;line-height:1}.hero h3{font-size:1.4rem;margin:8px 0;font-weight:600}.hero p{color:#b9c8d9;margin:6px 0}
+.hero .lab{color:#4CC9F0;font-size:.85rem;letter-spacing:.12em;font-weight:600}.hero .pill{display:inline-block;border:1px solid #18B6A4;color:#7fe3d6;border-radius:20px;padding:2px 12px;font-size:.85rem;margin-top:10px}
+.hero button{margin:10px 10px 0 0;padding:10px 18px;font-weight:700}.hero button.a{background:#18B6A4;border-color:#18B6A4;color:#06222a}.hero button.b{background:none;border-color:#4CC9F0;color:#fff}
+.hero svg{width:100%;height:auto;border-radius:12px;display:block}.pulse{stroke-dasharray:420;stroke-dashoffset:420;animation:beat 3s linear infinite}@keyframes beat{to{stroke-dashoffset:0}}
+@media(max-width:700px){.hero{grid-template-columns:1fr;padding:20px}}@media(prefers-reduced-motion:reduce){.pulse{animation:none;stroke-dashoffset:0}}
+
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1f29;--ink:#e3f1f6;--blue:#1b3a49;color-scheme:dark}nav,.card,table,button,input,select,.buf div,.map{background-color:#12303d}nav button{background:none}nav button.on{background:var(--blue)}button:not(nav button){background:var(--teal)}.map .free{background:#1b3a49}.map .used{background:var(--teal)}.buf .f{background:var(--blue)}.note{color:#12303d}th,td{color:var(--ink)}}</style></head>
+<body>
+<nav id="nav" aria-label="Main">
+ <h1>MediCore</h1>
+ <button data-s="dash" class="on">Dashboard</button><button data-s="pat">Patients &amp; Emergency</button>
+ <button data-s="cpu">CPU Scheduling</button><button data-s="pc">Producer–Consumer</button>
+ <button data-s="bank">Banker's Algorithm</button><button data-s="mem">Memory Management</button>
+ <button data-s="about">About</button>
+</nav>
+<main>
+<p class="note">Educational simulation with demo data only. Not connected to any hospital. Real emergency in India? Call <a href="tel:112">112</a>.</p>
+
+<section id="dash">
+ <div class="hero"><div><div class="lab">OPERATING SYSTEMS MINI PROJECT</div><h2>MEDICORE</h2>
+ <h3>Hospital Management and<br>Emergency Care System</h3><p><b>An Operating Systems Algorithm Visualizer</b></p>
+ <p>See how scheduling, synchronization, deadlock avoidance and memory management keep emergency patients, lab and imaging tasks, and shared hospital resources moving safely.</p>
+ <button class="a" onclick="document.getElementById('dKpi').scrollIntoView({behavior:'smooth'})">Explore Dashboard</button><button class="b" onclick="show('cpu')">Explore OS Algorithms</button><br><span class="pill">Educational simulation · demo data only</span></div>
+ <svg viewBox="0 0 400 300" role="img" aria-label="Illustration of a hospital building with a heartbeat line"><rect width="400" height="300" fill="#13243A"/><rect x="110" y="60" width="180" height="150" rx="6" fill="#1c3a57" stroke="#4CC9F0" stroke-opacity=".5"/><rect x="180" y="80" width="40" height="40" rx="4" fill="#18B6A4"/><path d="M200 86v28M186 100h28" stroke="#fff" stroke-width="7"/><g fill="#4CC9F0" fill-opacity=".55"><rect x="128" y="135" width="22" height="18"/><rect x="189" y="135" width="22" height="18"/><rect x="250" y="135" width="22" height="18"/><rect x="128" y="170" width="22" height="18"/><rect x="250" y="170" width="22" height="18"/></g><rect x="188" y="168" width="24" height="42" fill="#0B1220"/>
+ <polyline class="pulse" points="10,255 90,255 115,225 140,280 165,240 185,255 390,255" fill="none" stroke="#4CC9F0" stroke-width="3" stroke-linejoin="round"/></svg></div>
+ <h2>Hospital Operations Overview</h2><p>Monitor patient workflows, emergency priorities, processing queues, and system resources. <span class="badge Routine">DEMO ENVIRONMENT</span></p>
+ <div class="cards" id="dKpi"><div class="card"><b id="dPat">0</b>Demo patients</div><div class="card"><b id="dEmg">0</b>Emergency</div>
+ <div class="card"><b id="dMem">0%</b>Simulated memory used</div><div class="card"><b id="dBuf">0/5</b>Shared buffer</div></div>
+ <p>MediCore shows how an OS manages a hospital: emergencies get CPU priority (Scheduling), lab/pharmacy requests share a bounded buffer (Synchronization), imaging/printer/DB are granted only in safe states (Banker's), and each task gets memory (Allocation).</p>
+</section>
+
+<section id="pat" hidden><h2>Patients &amp; Emergency Queue</h2>
+ <form id="pf"><input id="pn" placeholder="Demo name" maxlength="30"><input id="pa" type="number" placeholder="Age" min="0" max="120">
+ <select id="pt"><option>Normal</option><option>Emergency</option></select>
+ <select id="pp"><option>Routine</option><option>Urgent</option><option>Critical</option></select><button>Register</button></form>
+ <p id="pm" class="msg"></p><input id="ps" placeholder="Search…" aria-label="Search patients">
+ <table><thead><tr><th>ID<th>Name<th>Age<th>Type<th>Priority<th>Admitted<th></tr></thead><tbody id="pb"></tbody></table>
+ <p>Queue is sorted Critical → Urgent → Routine, then by arrival: emergencies are served first, like priority scheduling.</p>
+</section>
+
+<section id="cpu" hidden><h2>CPU Scheduling</h2>
+ <div class="row"><select id="alg"><option value="fcfs">FCFS</option><option value="sjf">SJF (non-preemptive)</option><option value="prio">Priority (non-preemptive, 1 = highest)</option><option value="rr">Round Robin</option></select>
+ <label>Quantum <input id="q" type="number" value="2" min="1"></label><button id="cAdd">Add process</button><button id="cRst">Reset</button></div>
+ <table><thead><tr><th>PID<th>Arrival<th>Burst<th>Priority<th></tr></thead><tbody id="cIn"></tbody></table>
+ <div id="gantt" class="gantt"></div>
+ <table><thead><tr><th>PID<th>Completion<th>Turnaround<th>Waiting</tr></thead><tbody id="cOut"></tbody></table>
+ <p id="cAvg"></p>
+ <p>Emergency tasks get priority 1 so the CPU serves them before routine work, cutting life-critical waiting time. Priority and SJF here are non-preemptive: a running task is never interrupted.</p>
+</section>
+
+<section id="pc" hidden><h2>Producer–Consumer (Bounded Buffer, size 5)</h2>
+ <div class="row"><select id="pcP"><option>Laboratory</option><option>Pharmacy</option><option>Registration</option><option>Radiology</option></select>
+ <button id="pcProd">Produce request</button><button id="pcCons">Consume request</button><button id="pcStep">Random step</button><button id="pcRst">Reset</button></div>
+ <div id="pcBuf" class="buf"></div><p id="pcSem"></p><pre id="pcLog" class="log"></pre>
+ <p>Semaphores: <i>empty</i> = free slots, <i>full</i> = filled slots, <i>mutex</i> = lock around buffer access. Producer waits if empty=0; consumer waits if full=0. This is a single-threaded model of the idea, not real concurrency.</p>
+</section>
+
+<section id="bank" hidden><h2>Banker's Algorithm</h2>
+ <div id="bTbl"></div>
+ <form id="bf" class="row"><select id="bp"></select><span id="bIn"></span><button>Request resources</button><button type="button" id="bRst">Reset</button><button type="button" id="bUns">Load unsafe example</button></form>
+ <p id="bMsg" class="msg"></p>
+ <p>Resources: CPU slots, Imaging units, Printer slots, DB connections. Need = Max − Allocation. A request is granted only if the resulting state still has a safe sequence.</p>
+</section>
+
+<section id="mem" hidden><h2>Memory Management (simulated, not real RAM)</h2>
+ <div class="row"><label>Total <input id="mT" type="number" value="1000" min="100"></label><button id="mSet">Set size</button>
+ <select id="mS"><option value="first">First Fit</option><option value="best">Best Fit</option><option value="worst">Worst Fit</option></select>
+ <input id="mN" placeholder="Process name" maxlength="12"><input id="mZ" type="number" placeholder="Size" min="1"><button id="mAl">Allocate</button><button id="mRst">Reset sample</button></div>
+ <p id="mMsg" class="msg"></p><div id="mMap" class="map"></div><p id="mStat"></p>
+ <table><thead><tr><th>Process<th>Size<th>Status<th></tr></thead><tbody id="mTb"></tbody></table>
+ <p>External fragmentation: enough total free memory exists, but no single hole is big enough. Internal fragmentation does not occur here because blocks are split exactly.</p>
+</section>
+
+<section id="about" hidden><h2>About</h2>
+ <p><b>Problem 1:</b> Hospital Management and Emergency Care System (OS Mini Project). Pure HTML/CSS/JS, no backend.</p>
+ <p><b>Demo order:</b> Patients → CPU Scheduling → Producer–Consumer → Banker's (grant, then unsafe) → Memory (fragmentation).</p>
+ <p><b>Limits:</b> simulation only; no real concurrency; demo data; no storage of personal data.</p>
+</section>
+</main>
+<script>// CPU SCHEDULING: FCFS, SJF, Priority (non-preemptive) and Round Robin.
+// Each process: {id, at (arrival), bt (burst), pr (priority, 1 = highest)}
+const COLORS=['#0e8a8a','#3a7ca5','#c0392b','#b26a00','#6c5ce7','#2d936c'];
+let procs=[];
+function sampleProcs(){procs=[{id:'ER-Admit',at:0,bt:5,pr:1},{id:'Lab',at:1,bt:3,pr:3},{id:'Pharmacy',at:2,bt:2,pr:4},{id:'Imaging',at:3,bt:4,pr:2}];}
+// Non-preemptive: at each free moment pick, among arrived processes, the smallest 'key'
+function nonPre(P,key){let t=0,g=[],c={};
+ while(Object.keys(c).length<P.length){
+  const a=P.filter(p=>!(p.id in c)&&p.at<=t);
+  if(!a.length){const nx=Math.min(...P.filter(p=>!(p.id in c)).map(p=>p.at));g.push({id:'idle',s:t,e:nx});t=nx;continue;}
+  a.sort((x,y)=>x[key]-y[key]||x.at-y.at);const p=a[0];
+  g.push({id:p.id,s:t,e:t+p.bt});t+=p.bt;c[p.id]=t;}
+ return{g,c};}
+// Round Robin: each process runs at most 'q' units, then goes to the back of the queue
+function roundRobin(P,q){P=[...P].sort((a,b)=>a.at-b.at);let t=0,i=0,qu=[],g=[],c={},rem={};
+ P.forEach(p=>rem[p.id]=p.bt);const arrive=()=>{while(i<P.length&&P[i].at<=t)qu.push(P[i++]);};
+ while(Object.keys(c).length<P.length){arrive();
+  if(!qu.length){g.push({id:'idle',s:t,e:P[i].at});t=P[i].at;continue;}
+  const p=qu.shift(),r=Math.min(q,rem[p.id]);g.push({id:p.id,s:t,e:t+r});t+=r;rem[p.id]-=r;arrive();
+  if(rem[p.id]>0)qu.push(p);else c[p.id]=t;}
+ return{g,c};}
+function runCpu(){const alg=document.getElementById('alg').value,q=Math.max(1,+document.getElementById('q').value||1);
+ const out=document.getElementById('cOut'),gt=document.getElementById('gantt');
+ if(!procs.length){out.innerHTML='<tr><td colspan=4>No processes. Add one.</td></tr>';gt.innerHTML='';document.getElementById('cAvg').textContent='';return;}
+ const r=alg==='rr'?roundRobin(procs,q):nonPre(procs,{fcfs:'at',sjf:'bt',prio:'pr'}[alg]);
+ const ids=procs.map(p=>p.id);
+ gt.innerHTML=r.g.map(b=>`<div style="flex:${b.e-b.s};background:${b.id==='idle'?'#999':COLORS[ids.indexOf(b.id)%6]}">${b.id}<small>${b.s}</small></div>`).join('')+`<small style="align-self:flex-end">${r.g[r.g.length-1].e}</small>`;
+ let tw=0,tt=0;out.innerHTML=procs.map(p=>{const ct=r.c[p.id],tat=ct-p.at,wt=tat-p.bt;tw+=wt;tt+=tat;return`<tr><td>${p.id}<td>${ct}<td>${tat}<td>${wt}`}).join('');
+ document.getElementById('cAvg').textContent=`Average turnaround = ${(tt/procs.length).toFixed(2)}, average waiting = ${(tw/procs.length).toFixed(2)}`;}
+function drawCpuInputs(){document.getElementById('cIn').innerHTML=procs.map((p,i)=>`<tr><td>${p.id}`+['at','bt','pr'].map(k=>`<td><input type=number min=${k==='bt'||k==='pr'?1:0} value=${p[k]} data-i=${i} data-k=${k} aria-label="${p.id} ${k}">`).join('')+`<td><button data-del=${i}>Remove</button>`).join('');runCpu();}
+function initCpu(){sampleProcs();drawCpuInputs();
+ document.getElementById('cIn').addEventListener('input',e=>{const t=e.target;if(t.dataset.k){const v=Math.floor(+t.value);if(v>=+t.min)procs[t.dataset.i][t.dataset.k]=v;runCpu();}});
+ document.getElementById('cIn').addEventListener('click',e=>{if(e.target.dataset.del){procs.splice(e.target.dataset.del,1);drawCpuInputs();}});
+ document.getElementById('cAdd').onclick=()=>{let n=1;while(procs.some(p=>p.id==='P'+n))n++;procs.push({id:'P'+n,at:0,bt:3,pr:5});drawCpuInputs();};
+ document.getElementById('cRst').onclick=()=>{sampleProcs();drawCpuInputs();};
+ document.getElementById('alg').onchange=runCpu;document.getElementById('q').oninput=runCpu;}
+</script><script>// PRODUCER-CONSUMER with a bounded buffer. Semaphores: empty (free slots), full (used slots), mutex (lock).
+const CAP=5;let buf=[],mutex=0,pcCount=0;
+const pcLogEl=()=>document.getElementById('pcLog');
+function plog(m){pcLogEl().textContent+=m+'\n';pcLogEl().scrollTop=1e9;}
+function pcDraw(){const el=document.getElementById('pcBuf');el.innerHTML='';
+ for(let i=0;i<CAP;i++)el.innerHTML+=buf[i]?`<div class=f>${buf[i]}</div>`:'<div>empty</div>';
+ document.getElementById('pcSem').textContent=`empty=${CAP-buf.length}  full=${buf.length}  mutex=${mutex?'LOCKED':'free'}  completed=${pcCount}`;
+ document.getElementById('dBuf').textContent=buf.length+'/'+CAP;}
+function produce(){const src=document.getElementById('pcP').value;
+ if(buf.length===CAP){plog(`[WAIT] ${src} producer blocked: buffer FULL (empty=0). Overflow prevented.`);return false;}
+ mutex=1;plog(`[LOCK] mutex acquired by ${src}`);const r=`${src[0]}${++pcId}`;buf.push(r);
+ plog(`[PRODUCING] ${src} inserted request ${r}`);mutex=0;plog('[UNLOCK] mutex released');pcDraw();return true;}
+let pcId=0;
+function consume(){if(!buf.length){plog('[WAIT] consumer blocked: buffer EMPTY (full=0). Underflow prevented.');return false;}
+ mutex=1;plog('[LOCK] mutex acquired by consumer');const r=buf.shift();pcCount++;
+ plog(`[CONSUMING] processed ${r} → [COMPLETED]`);mutex=0;plog('[UNLOCK] mutex released');pcDraw();return true;}
+function initPc(){pcDraw();
+ document.getElementById('pcProd').onclick=produce;document.getElementById('pcCons').onclick=consume;
+ document.getElementById('pcStep').onclick=()=>Math.random()<.5?produce():consume();
+ document.getElementById('pcRst').onclick=()=>{buf=[];mutex=0;pcCount=0;pcId=0;pcLogEl().textContent='';pcDraw();};}
+</script>
+<script>// BANKER'S ALGORITHM: grant a request only if the new state is SAFE.
+const RES=['CPU','Imaging','Printer','DB'];
+const SAMPLE={alloc:[[0,1,0,1],[2,0,0,0],[3,0,2,1],[2,1,1,0],[0,0,2,2]],
+ max:[[7,5,3,2],[3,2,2,1],[9,0,2,2],[2,2,2,1],[4,3,3,3]],avail:[3,3,2,2]};
+const PN=['ER-Admit','Lab','Pharmacy','Imaging-Job','Billing-DB'];
+let B;const clone=o=>JSON.parse(JSON.stringify(o));
+const needOf=(s,i)=>s.max[i].map((m,j)=>m-s.alloc[i][j]);   // Need = Max - Allocation
+// Safety algorithm: repeatedly find a process whose Need <= Work, let it finish, and reclaim its resources.
+function safety(s){let w=[...s.avail],fin=s.alloc.map(()=>false),seq=[],prog=true;
+ while(prog){prog=false;s.alloc.forEach((a,i)=>{if(!fin[i]&&needOf(s,i).every((n,j)=>n<=w[j])){w=w.map((x,j)=>x+a[j]);fin[i]=true;seq.push(PN[i]);prog=true;}});}
+ return{safe:fin.every(Boolean),seq};}
+function drawBank(){const row=(a)=>a.map(x=>`<td>${x}`).join('');
+ document.getElementById('bTbl').innerHTML=`<table><thead><tr><th>Process<th colspan=4>Allocation<th colspan=4>Max<th colspan=4>Need</tr><tr><th>${RES.concat(RES,RES).map(r=>'<th>'+r).join('')}</tr></thead><tbody>`+
+ B.alloc.map((a,i)=>`<tr><td>${PN[i]}${row(a)}${row(B.max[i])}${row(needOf(B,i))}`).join('')+`</tbody></table><p><b>Available:</b> ${RES.map((r,j)=>r+'='+B.avail[j]).join(', ')}</p>`;}
+function say(m,ok){const e=document.getElementById('bMsg');e.textContent=m;e.className='msg '+(ok?'ok':'bad');}
+function request(i,req){const need=needOf(B,i);
+ if(req.some(x=>!Number.isInteger(x)||x<0))return say('Enter whole numbers ≥ 0.',false);
+ if(req.every(x=>x===0))return say('Request is all zeros.',false);
+ if(req.some((x,j)=>x>need[j]))return say(`Denied: ${PN[i]} asked for more than its remaining Need (${need}). It exceeded its declared maximum.`,false);
+ if(req.some((x,j)=>x>B.avail[j]))return say(`Wait: not enough Available (${B.avail}). ${PN[i]} must wait.`,false);
+ const T=clone(B);T.avail=T.avail.map((a,j)=>a-req[j]);T.alloc[i]=T.alloc[i].map((a,j)=>a+req[j]);   // pretend to allocate
+ const r=safety(T);
+ if(r.safe){B=T;drawBank();say(`Granted. Safe sequence: ${r.seq.join(' → ')}`,true);}
+ else say(`Rejected & rolled back: granting this would leave no safe sequence (deadlock possible), so ${PN[i]} must wait.`,false);}
+function initBank(){B=clone(SAMPLE);drawBank();
+ document.getElementById('bp').innerHTML=PN.map((p,i)=>`<option value=${i}>${p}</option>`).join('');
+ document.getElementById('bIn').innerHTML=RES.map((r,j)=>`<input type=number min=0 value=0 id=br${j} aria-label="${r}" title="${r}" style="width:64px">`).join('');
+ document.getElementById('bf').onsubmit=e=>{e.preventDefault();request(+document.getElementById('bp').value,RES.map((_,j)=>+document.getElementById('br'+j).value));};
+ document.getElementById('bRst').onclick=()=>{B=clone(SAMPLE);drawBank();say('Reset to sample state.',true);};
+ document.getElementById('bUns').onclick=()=>{document.getElementById('bp').value=4;[3,3,0,0].forEach((v,j)=>document.getElementById('br'+j).value=v);say('Loaded: Billing-DB requests [3,3,0,0]. Click Request – it is valid but unsafe.',true);};
+ const s=safety(B);say('Initial state is safe: '+s.seq.join(' → '),true);}
+</script><script>// MEMORY MANAGEMENT: variable partitions with First/Best/Worst Fit. Simulated memory, not real RAM.
+let blocks=[];   // {size, pid|null}; null = free hole
+const mm=m=>{const e=document.getElementById('mMsg');e.textContent=m;};
+function memReset(total){blocks=[{size:total,pid:null}];}
+function memSample(){const t=+document.getElementById('mT').value||1000;memReset(t);
+ [['ER-Admit',t*.2],['Lab',t*.15],['Imaging',t*.3],['Pharmacy',t*.1]].forEach(([n,s])=>alloc(n,Math.round(s),'first',true));free('Lab',true);}
+function alloc(pid,size,strategy,quiet){
+ if(blocks.some(b=>b.pid===pid))return quiet||mm(`"${pid}" is already allocated. Use a different name.`);
+ const holes=blocks.map((b,i)=>({i,size:b.size})).filter((h,k)=>blocks[k].pid===null&&h.size>=size);
+ if(!holes.length){const fr=blocks.filter(b=>!b.pid).reduce((a,b)=>a+b.size,0);
+  return quiet||mm(fr>=size?`Failed: ${fr} free in total but no single hole fits ${size} → EXTERNAL FRAGMENTATION.`:`Failed: only ${fr} free, ${size} requested.`);}
+ let h=holes[0];                                         // First Fit: first big-enough hole
+ if(strategy==='best')h=holes.reduce((a,b)=>b.size<a.size?b:a);    // Best Fit: smallest big-enough hole
+ if(strategy==='worst')h=holes.reduce((a,b)=>b.size>a.size?b:a);   // Worst Fit: largest hole
+ const left=blocks[h.i].size-size;blocks.splice(h.i,1,{size,pid},...(left?[{size:left,pid:null}]:[]));
+ if(!quiet)mm(`Allocated ${size} to ${pid} (${strategy} fit).`);}
+function free(pid,quiet){const b=blocks.find(x=>x.pid===pid);if(!b)return;b.pid=null;
+ for(let i=blocks.length-2;i>=0;i--)if(!blocks[i].pid&&!blocks[i+1].pid){blocks[i].size+=blocks[i+1].size;blocks.splice(i+1,1);}  // merge adjacent holes
+ if(!quiet)mm(`Freed ${pid}; adjacent holes merged.`);}
+function memDraw(){const total=blocks.reduce((a,b)=>a+b.size,0),used=blocks.filter(b=>b.pid).reduce((a,b)=>a+b.size,0);
+ const holes=blocks.filter(b=>!b.pid).map(b=>b.size);
+ document.getElementById('mMap').innerHTML=blocks.map(b=>`<div class="${b.pid?'used':'free'}" style="flex:${b.size}" title="${b.size}">${b.pid||'free'} ${b.size}</div>`).join('');
+ document.getElementById('mStat').textContent=`Used ${used}/${total} (${(used/total*100).toFixed(1)}%), free ${total-used}, largest hole ${Math.max(0,...holes)}, holes: ${holes.length}`;
+ document.getElementById('mTb').innerHTML=blocks.filter(b=>b.pid).map(b=>`<tr><td>${b.pid}<td>${b.size}<td>Allocated<td><button data-f="${b.pid}">Free</button>`).join('')||'<tr><td colspan=4>No processes in memory.</td></tr>';
+ document.getElementById('dMem').textContent=Math.round(used/total*100)+'%';}
+function initMem(){memSample();memDraw();
+ document.getElementById('mAl').onclick=()=>{const n=document.getElementById('mN').value.trim(),z=+document.getElementById('mZ').value;
+  if(!n||!Number.isInteger(z)||z<1)return mm('Enter a name and a whole-number size ≥ 1.');
+  alloc(n,z,document.getElementById('mS').value);memDraw();};
+ document.getElementById('mTb').onclick=e=>{if(e.target.dataset.f){free(e.target.dataset.f);memDraw();}};
+ document.getElementById('mSet').onclick=()=>{const t=+document.getElementById('mT').value;if(!Number.isInteger(t)||t<100)return mm('Total must be a whole number ≥ 100.');memReset(t);memDraw();mm('Memory resized; all processes cleared.');};
+ document.getElementById('mRst').onclick=()=>{memSample();memDraw();mm('Sample scenario loaded: Lab freed, leaving a hole between processes.');};}
+</script><script>// APP: navigation, demo patient list (fictional data only), module start-up.
+let pts=[{id:'P-001',name:'Demo Patient A',age:34,type:'Emergency',pri:'Critical',t:'09:02'},{id:'P-002',name:'Demo Patient B',age:8,type:'Emergency',pri:'Urgent',t:'09:10'},{id:'P-003',name:'Demo Patient C',age:52,type:'Normal',pri:'Routine',t:'09:15'}];
+const rank={Critical:0,Urgent:1,Routine:2},$=id=>document.getElementById(id);
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function drawPts(){const q=$('ps').value.toLowerCase();
+ const rows=[...pts].sort((a,b)=>rank[a.pri]-rank[b.pri]||a.t.localeCompare(b.t)).filter(p=>(p.name+p.id).toLowerCase().includes(q));
+ $('pb').innerHTML=rows.map(p=>`<tr><td>${p.id}<td>${esc(p.name)}<td>${p.age}<td>${p.type}<td><span class="badge ${p.pri}">${p.pri}</span><td>${p.t}<td><button data-d="${p.id}">Delete</button>`).join('')||'<tr><td colspan=7>No patients match. Register one above.</td></tr>';
+ $('dPat').textContent=pts.length;$('dEmg').textContent=pts.filter(p=>p.type==='Emergency').length;}
+function show(s){document.querySelectorAll('main section').forEach(x=>x.hidden=x.id!==s);
+ document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.s));
+$('pf').onsubmit=e=>{e.preventDefault();const n=$('pn').value.trim(),a=+$('pa').value,m=$('pm');
+ if(n.length<2||!Number.isInteger(a)||a<0||a>120){m.textContent='Enter a demo name (2+ letters) and an age from 0 to 120. Do not enter real patient data.';m.className='msg bad';return;}
+ const d=new Date();pts.push({id:'P-'+String(pts.length+1+Math.floor(Math.random()*900)).padStart(3,'0'),name:n,age:a,type:$('pt').value,pri:$('pp').value,t:d.toTimeString().slice(0,5)});
+ m.textContent='Registered (demo only).';m.className='msg ok';$('pf').reset();drawPts();};
+$('pb').onclick=e=>{const id=e.target.dataset.d;if(id&&confirm('Delete '+id+'?')){pts=pts.filter(p=>p.id!==id);drawPts();}};
+$('ps').oninput=drawPts;
+drawPts();initCpu();initPc();initBank();initMem();
+</script>
+</body></html>
